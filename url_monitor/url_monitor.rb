@@ -3,6 +3,7 @@ require 'benchmark'
 require 'net/http'
 require 'net/https'
 require 'uri'
+require 'cgi'
 
 class UrlMonitor < Scout::Plugin
   include Net
@@ -96,7 +97,7 @@ class UrlMonitor < Scout::Plugin
             req['User-Agent'] = "ScoutURLMonitor/#{Scout::VERSION}"
             req['host'] = uri.host
             if uri.user && uri.password
-              req.basic_auth uri.user, uri.password
+              req.basic_auth CGI::unescape(uri.user), CGI::unescape(uri.password)
             end
             response = h.request(req)
       }
