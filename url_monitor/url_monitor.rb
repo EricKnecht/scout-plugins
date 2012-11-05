@@ -3,7 +3,6 @@ require 'benchmark'
 require 'net/http'
 require 'net/https'
 require 'uri'
-require 'cgi'
 
 class UrlMonitor < Scout::Plugin
   include Net
@@ -32,10 +31,11 @@ class UrlMonitor < Scout::Plugin
     unless url =~ %r{\Ahttps?://}
       url = "http://#{url}"
     end
-
+    
+    uri = URI.parse(url)
     response = nil
     response_time = Benchmark.realtime do
-      response = http_response(url)
+      response = http_response(uri)
     end
 
     report(:status => response.class.to_s[/^Net::HTTP(.*)$/, 1],
@@ -61,7 +61,7 @@ class UrlMonitor < Scout::Plugin
                  "Was unresponsive for #{(Time.now - memory(:down_at)).to_i} seconds")
         else
           alert( "The URL [#{url}] is responding",
-                 "URL: #{url}\n\nStatus: #{response.class.to_s[/^Net::HTTP(.*)$/, 1]}. ")
+                 "URL: #{uri.scheme}://#{uri.host}#{uri.path}\n\nStatus: #{response.class.to_s[/^Net::HTTP(.*)$/, 1]}. ")
         end
         memory.delete(:down_at)
       end
@@ -79,9 +79,8 @@ class UrlMonitor < Scout::Plugin
 
   # returns the http response from a url
   # CONFUSING: note that the response is a String when an error occurs.
-  def http_response(url)
-    uri = URI.parse(url)
-
+  def http_response(uri)
+   
     response = nil
     retry_url_execution_expired = true
     begin
@@ -97,7 +96,7 @@ class UrlMonitor < Scout::Plugin
             req['User-Agent'] = "ScoutURLMonitor/#{Scout::VERSION}"
             req['host'] = uri.host
             if uri.user && uri.password
-              req.basic_auth CGI::unescape(uri.user), CGI::unescape(uri.password)
+              req.basic_auth URI.unescape(uri.user), URI.unescape(uri.password)
             end
             response = h.request(req)
       }
